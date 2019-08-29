@@ -26,21 +26,21 @@ SOFTWARE.
 #include <ctype.h>
 
 #include <Arduino.h>
-#include <WProgram.h>
+/*#include <WProgram.h>*/
 
 #include "scpiparser.h"
 
 #ifdef __cplusplus
 
   extern "C" {
-  
+
 #endif
 
 static scpi_error_t
 system_error(struct scpi_parser_context* ctx, struct scpi_token* command)
 {
 	struct scpi_error* error = scpi_pop_error(ctx);
-	
+
 	Serial.print(error->id);
         Serial.print(",\"");
         Serial.write((const uint8_t*)error->description, error->length);
@@ -55,34 +55,34 @@ scpi_init(struct scpi_parser_context* ctx)
 {
 	struct scpi_command* system;
 	struct scpi_command* error;
-	
+
 	ctx->command_tree = (struct scpi_command*)malloc(sizeof(struct scpi_command));
-	
+
 	ctx->command_tree->long_name = NULL;
 	ctx->command_tree->long_name_length = 0;
-	
+
 	ctx->command_tree->short_name = NULL;
 	ctx->command_tree->short_name_length = 0;
-	
+
 	ctx->command_tree->callback = NULL;
 	ctx->command_tree->next = NULL;
 	ctx->command_tree->children = NULL;
-	
+
 	system = scpi_register_command(
 				ctx->command_tree, SCPI_CL_CHILD, "SYSTEM", 6,
 												  "SYST", 4, NULL);
-												  
+
 	error = scpi_register_command(
 				system, SCPI_CL_CHILD, "ERROR", 5,
 									   "ERR", 3, NULL);
-									   
+
 	scpi_register_command(
 				system, SCPI_CL_CHILD, "ERROR?", 6,
 									   "ERR?", 4, system_error);
-	
+
 	scpi_register_command(
 				error, SCPI_CL_CHILD, "NEXT?", 5, "NEXT?", 5, system_error);
-	
+
 	ctx->error_queue_head = NULL;
 	ctx->error_queue_tail = NULL;
 }
@@ -91,34 +91,34 @@ struct scpi_token*
 scpi_parse_string(char* str, size_t length)
 {
 	int i;
-	
+
 	struct scpi_token* head;
 	struct scpi_token* tail;
-	
+
 	int token_start;
-	
+
 	head = NULL;
 	tail = NULL;
 	token_start = 0;
-	
+
 	for(i = 0; i < length; i++)
 	{
-		
+
 		if(str[i] == ':' || str[i] == ' ' || i == length-1)
 		{
 			struct scpi_token* new_tail;
-			
+
 			new_tail = (struct scpi_token*)malloc(sizeof(struct scpi_token));
 			new_tail->type = 0;
 			new_tail->value = str+token_start;
 			new_tail->length = i-token_start;
 			new_tail->next = NULL;
-			
+
 			if(i == length-1)
 			{
 				new_tail->length++;
 			}
-						
+
 			if(tail == NULL)
 			{
 				head = new_tail;
@@ -128,16 +128,16 @@ scpi_parse_string(char* str, size_t length)
 				tail->next = new_tail;
 			}
 			tail = new_tail;
-			
+
 			token_start = i+1;
-			
+
 			if(str[i] == ' ')
 			{
 				break;
 			}
 		}
 	}
-	
+
 	token_start = -1;
 	for(i++; i < length; i++)
 	{
@@ -145,7 +145,7 @@ scpi_parse_string(char* str, size_t length)
 		{
 			token_start = i;
 		}
-		
+
 		if(str[i] == ',' || i == length-1)
 		{
 			struct scpi_token* new_tail;
@@ -154,19 +154,19 @@ scpi_parse_string(char* str, size_t length)
 			new_tail->value = str+token_start;
 			new_tail->length = i-token_start;
 			new_tail->next = NULL;
-			
+
 			if(i == length-1)
 			{
 				new_tail->length++;
 			}
-			
+
 			tail->next = new_tail;
 			tail = new_tail;
-			
+
 			token_start = -1;
 		}
 	}
-	
+
 	return head;
 }
 
@@ -176,9 +176,9 @@ scpi_register_command(struct scpi_command* parent, scpi_command_location_t locat
 						char* short_name, size_t short_name_length,
 						command_callback_t callback)
 {
-	
+
 	struct scpi_command* current_command;
-	
+
 	if(location == SCPI_CL_CHILD)
 	{
 		current_command = parent->children;
@@ -187,7 +187,7 @@ scpi_register_command(struct scpi_command* parent, scpi_command_location_t locat
 	{
 		current_command = parent;
 	}
-	
+
 	if(current_command == NULL)
 	{
 		parent->children = (struct scpi_command*)malloc(sizeof(struct scpi_command));
@@ -199,22 +199,22 @@ scpi_register_command(struct scpi_command* parent, scpi_command_location_t locat
 		{
 			current_command = current_command->next;
 		}
-		
+
 		current_command->next = (struct scpi_command*)malloc(sizeof(struct scpi_command));
 		current_command = current_command->next;
 	}
-	
+
 	current_command->next = NULL;
 	current_command->children = NULL;
-	
+
 	current_command->long_name = long_name;
 	current_command->long_name_length = long_name_length;
-	
+
 	current_command->short_name = short_name;
 	current_command->short_name_length = short_name_length;
-	
+
 	current_command->callback = callback;
-	
+
 	return current_command;
 }
 
@@ -225,19 +225,19 @@ scpi_find_command(struct scpi_parser_context* ctx,
 	struct scpi_command* root;
 	struct scpi_token* current_token;
 	struct scpi_command* current_command;
-	
+
 	root = ctx->command_tree;
 	current_token = parsed_string;
 	current_command = root;
 
-	
+
 	while(current_token != NULL && current_token->type == 0)
 	{
-	
+
 		int found_token = 0;
 		while(current_command != NULL)
 		{
-			
+
 			if((current_token->length == current_command->long_name_length
 					&& !memcmp(current_token->value, current_command->long_name, current_token->length))
 				|| (current_token->length == current_command->short_name_length
@@ -245,7 +245,7 @@ scpi_find_command(struct scpi_parser_context* ctx,
 			{
 				/* We have found the token. */
 				current_token = current_token->next;
-				
+
 				if(current_token == NULL || current_token->type != 0)
 				{
 					return current_command;
@@ -262,13 +262,13 @@ scpi_find_command(struct scpi_parser_context* ctx,
 				current_command = current_command->next;
 			}
 		}
-		
+
 		if(!found_token)
 		{
 			return NULL;
 		}
 	}
-	
+
 	return NULL;
 }
 
@@ -277,21 +277,21 @@ scpi_execute_command(struct scpi_parser_context* ctx, char* command_string, size
 {
 	struct scpi_command* command;
 	struct scpi_token* parsed_command;
-	
+
 	parsed_command = scpi_parse_string(command_string, length);
-	
+
 	command = scpi_find_command(ctx, parsed_command);
 	if(command == NULL)
 	{
 		return SCPI_COMMAND_NOT_FOUND;
 	}
-	
+
 	if(command->callback == NULL)
 	{
 		return SCPI_NO_CALLBACK;
 	}
-	
-	
+
+
 	return command->callback(ctx, parsed_command);
 }
 
@@ -303,7 +303,7 @@ scpi_free_some_tokens(struct scpi_token* start, struct scpi_token* end)
 	{
 		prev = start;
 		start = start->next;
-		
+
 		free((void*)prev);
 	}
 }
@@ -329,7 +329,7 @@ scpi_parse_numeric(char* str, size_t length, float default_value, float min_valu
 	char* unit_start;
 	char* unit_end;
 	struct scpi_numeric retval;
-	
+
 	exponent = 0;
 	exponent_sign = 0;
 	point_position = 0;
@@ -344,7 +344,7 @@ scpi_parse_numeric(char* str, size_t length, float default_value, float min_valu
 	{
 		if(state == 0)
 		{
-			/* Remove leading whitespace */			
+			/* Remove leading whitespace */
 			if(isspace(str[i]))
 			{
 				continue;
@@ -357,7 +357,7 @@ scpi_parse_numeric(char* str, size_t length, float default_value, float min_valu
                                 retval.value = default_value;
                                 retval.unit = NULL;
                                 retval.length = 0;
-                                
+
                                 return retval;
                         }
                         else if(length-i >= 3 && str[i] == 'M' && str[i+1] == 'A' && str[i+2] == 'X')
@@ -392,7 +392,7 @@ scpi_parse_numeric(char* str, size_t length, float default_value, float min_valu
 				continue;
 			}
 		}
-		
+
 		if(state == 1)
 		{
 			/* Set the sign. */
@@ -404,18 +404,18 @@ scpi_parse_numeric(char* str, size_t length, float default_value, float min_valu
 			{
 				sign = 1;
 			}
-			
+
 			state = 2;
 			continue;
 		}
-		
+
 		if(state == 2 || state == 3)
 		{
 			if(isdigit(str[i]))
 			{
 				/* Start accumulating digits. */
 				mantissa = (10*mantissa) + (float)(str[i] - 0x30);
-				
+
 				if(state == 3)
 				{
 					/* We are past the decimal point, so reposition it. */
@@ -437,7 +437,7 @@ scpi_parse_numeric(char* str, size_t length, float default_value, float min_valu
 				state = 6;
 			}
 		}
-		
+
 		if(state == 4)
 		{
 			/* We are now looking at the exponent sign. */
@@ -457,10 +457,10 @@ scpi_parse_numeric(char* str, size_t length, float default_value, float min_valu
 				state = -1;
 			}
 		}
-		
+
 		if(state == 5)
 		{
-			
+
 			if(isdigit(str[i]))
 			{
 				exponent = (exponent*10) + (int)(str[i] - 0x30);
@@ -471,10 +471,10 @@ scpi_parse_numeric(char* str, size_t length, float default_value, float min_valu
 				state = 6;
 			}
 		}
-		
+
 		if(state == 6)
 		{
-		
+
 			/* Remove spaces between the number and its units. */
 			if(isspace(str[i]))
 			{
@@ -484,9 +484,9 @@ scpi_parse_numeric(char* str, size_t length, float default_value, float min_valu
 			{
 				state = 7;
 			}
-		
+
 		}
-		
+
 		if(state == 7)
 		{
 			/* The unit itself---first the multiplier. */
@@ -592,9 +592,9 @@ scpi_parse_numeric(char* str, size_t length, float default_value, float min_valu
 					state = 8;
                                         continue;
                                         break;
-				
+
 				default:
-				
+
 					if(isupper(str[i]))
 					{
 						state = 8;
@@ -607,7 +607,7 @@ scpi_parse_numeric(char* str, size_t length, float default_value, float min_valu
 			}
 
 		}
-		
+
 		if(state == 8)
 		{
 			/* The unit proper. */
@@ -629,7 +629,7 @@ scpi_parse_numeric(char* str, size_t length, float default_value, float min_valu
                                 {
                                         unit_end = NULL;
                                 }
-			
+
 				state = -1;
 			}
 		}
@@ -639,14 +639,14 @@ scpi_parse_numeric(char* str, size_t length, float default_value, float min_valu
         {
           unit_end = str+length-1;
         }
-	
+
 	value = (float)mantissa;
-	
+
 	if(exponent_sign != 0)
 	{
 		exponent = -exponent;
 	}
-	
+
 	exponent -= point_position;
 	if(exponent > 0)
 	{
@@ -654,7 +654,7 @@ scpi_parse_numeric(char* str, size_t length, float default_value, float min_valu
 		{
 			exponent_multiplier *= 10;
 		}
-		
+
 		value *= exponent_multiplier;
 	}
 	else
@@ -663,18 +663,18 @@ scpi_parse_numeric(char* str, size_t length, float default_value, float min_valu
 		{
 			exponent_multiplier *= 10;
 		}
-		
+
 		value /= exponent_multiplier;
 	}
-	
+
 	if(sign != 0)
 	{
 		value = -value;
 	}
-	
+
 	retval.value  = value;
 	retval.unit   = unit_start;
-	
+
 	if(unit_start == NULL)
 	{
 		retval.length = 0;
@@ -683,8 +683,8 @@ scpi_parse_numeric(char* str, size_t length, float default_value, float min_valu
 	{
 		retval.length = unit_end - unit_start + 1;
 	}
-	
-	
+
+
 	return retval;
 }
 
@@ -692,14 +692,14 @@ void
 scpi_queue_error(struct scpi_parser_context* ctx, struct scpi_error error)
 {
 	struct scpi_error* new_error;
-	
+
 	new_error = (struct scpi_error*)malloc(sizeof(struct scpi_error));
 	new_error->id = error.id;
 	new_error->description = error.description;
 	new_error->length = error.length;
-	
+
 	new_error->next = NULL;
-	
+
 	if(ctx->error_queue_head != NULL)
 	{
 		ctx->error_queue_tail->next = new_error;
@@ -708,7 +708,7 @@ scpi_queue_error(struct scpi_parser_context* ctx, struct scpi_error error)
 	{
 		ctx->error_queue_head = new_error;
 	}
-	
+
 	ctx->error_queue_tail = new_error;
 }
 
@@ -718,12 +718,12 @@ scpi_pop_error(struct scpi_parser_context* ctx)
 	if(ctx->error_queue_head == NULL)
 	{
 		struct scpi_error* success;
-		
+
 		success = (struct scpi_error*)malloc(sizeof(struct scpi_error));
 		success->id = 0;
 		success->description = "No error";
 		success->length = 8;
-		
+
 		return success;
 	}
 	else
@@ -732,12 +732,12 @@ scpi_pop_error(struct scpi_parser_context* ctx)
 
 		retval = ctx->error_queue_head;
 		ctx->error_queue_head = retval->next;
-		
+
 		if(ctx->error_queue_head == NULL)
 		{
 			ctx->error_queue_tail = NULL;
 		}
-		
+
 		return retval;
 	}
 }
@@ -745,6 +745,5 @@ scpi_pop_error(struct scpi_parser_context* ctx)
 #ifdef __cplusplus
 
   }
-  
-#endif
 
+#endif
